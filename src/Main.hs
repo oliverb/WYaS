@@ -3,4 +3,4 @@ module Main where
 import Parser
 
 main :: IO ()
-main = putStrLn (readExpr "!2")
+main = putStrLn (readExpr "\"fo\\\"o\"")
