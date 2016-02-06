@@ -14,7 +14,7 @@ data LispVal = Atom String
 instance Show LispVal where
     show (Atom name) = name
     show (Number int) = show int
-    show (String str) = str
+    show (String str) = show str
     show (Bool True) = "#t"
     show (Bool False) = "#f"
     show (Character c) = show c
