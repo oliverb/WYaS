@@ -27,7 +27,7 @@ parseExpr = parseCharacter
          <|> parseString
          <|> parseFloat
          <|> parseNumber
-         <|> parseQuoted
+         <|> parseQuotation
          <|> do char '('
                 x <- try parseList <|> parseDottedList
                 char ')'
@@ -42,11 +42,13 @@ parseDottedList = do head <- endBy parseExpr spaces
                      tail <- parseExpr
                      return $ DottedList head tail
 
-parseQuoted :: Parser LispVal
-parseQuoted = do
-    char '\''
-    x <- parseExpr
-    return $ List [Atom "quote", x]
+parseQuotation :: Parser LispVal
+parseQuotation = choice quoteParsers
+    where quoteParsers = map quoteParser [(",@", "unquote-splicing"), (",", "unqote"),
+                                          ("\'", "quote"), ("`", "quasiquote")]
+          quoteParser (sugar, symbol) = do try $ string sugar
+                                           x <- parseExpr
+                                           return $ List [Atom symbol, x]
 
 escapedCharacter :: Parser Char
 escapedCharacter = char '\\' >> (choice escapeCharParsers)
