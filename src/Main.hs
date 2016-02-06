@@ -1,6 +1,9 @@
 module Main where
 
+import System.Environment
+
+import Evaluation
 import Parser
 
 main :: IO ()
-main = putStrLn (readExpr "(a '(quoted ,(dotted . list)) test)")
+main = getArgs >>= print . eval . readExpr . head

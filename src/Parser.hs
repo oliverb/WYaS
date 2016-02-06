@@ -16,8 +16,8 @@ parseExpr :: Parser LispVal
 parseExpr = parseCharacter
          <|> parseAtom
          <|> parseString
-         <|> parseFloat
          <|> parseNumber
+         <|> parseFloat
          <|> parseQuotation
          <|> parseList
 
@@ -81,7 +81,7 @@ parseFloat = do intPart <- many1 digit
                 return . Float . toFloat $ intPart ++ "." ++ fractionalPart
                 where toFloat = fst . head . readFloat
 
-readExpr :: String -> String
+readExpr :: String -> LispVal
 readExpr input = case parse parseExpr "lisp" input of
-  Left err -> "No match: " ++ show err
-  Right val -> "Found value: " ++ show val
+    Left err -> String $ "No match: " ++ show err
+    Right val -> val
