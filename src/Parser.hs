@@ -1,6 +1,7 @@
 module Parser where
 
 import Control.Monad
+import Numeric
 import Text.ParserCombinators.Parsec hiding (spaces)
 
 
@@ -11,6 +12,7 @@ data LispVal = Atom String
              | String String
              | Bool Bool
              | Character Char
+             | Float Double
              deriving (Show, Eq)
 
 symbol :: Parser Char
@@ -23,7 +25,28 @@ parseExpr :: Parser LispVal
 parseExpr = parseCharacter
          <|> parseAtom
          <|> parseString
+         <|> parseFloat
          <|> parseNumber
+         <|> parseQuoted
+         <|> do char '('
+                x <- try parseList <|> parseDottedList
+                char ')'
+                return x
+
+parseList :: Parser LispVal
+parseList = liftM List $ sepBy parseExpr spaces
+
+parseDottedList :: Parser LispVal
+parseDottedList = do head <- endBy parseExpr spaces
+                     char '.' >> spaces
+                     tail <- parseExpr
+                     return $ DottedList head tail
+
+parseQuoted :: Parser LispVal
+parseQuoted = do
+    char '\''
+    x <- parseExpr
+    return $ List [Atom "quote", x]
 
 escapedCharacter :: Parser Char
 escapedCharacter = char '\\' >> (choice escapeCharParsers)
@@ -57,6 +80,13 @@ parseCharacter = do string "#\\"
 -- TODO: add other number formats (#b, #o, #d, #x)
 parseNumber :: Parser LispVal
 parseNumber = many1 digit >>= return . Number . read
+
+parseFloat :: Parser LispVal
+parseFloat = do intPart <- many1 digit
+                char '.'
+                fractionalPart <- many1 digit
+                return . Float . toFloat $ intPart ++ "." ++ fractionalPart
+                where toFloat = fst . head . readFloat
 
 readExpr :: String -> String
 readExpr input = case parse parseExpr "lisp" input of
