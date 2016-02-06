@@ -4,16 +4,7 @@ import Control.Monad
 import Numeric
 import Text.ParserCombinators.Parsec hiding (spaces)
 
-
-data LispVal = Atom String
-             | List [LispVal]
-             | DottedList [LispVal] LispVal
-             | Number Integer
-             | String String
-             | Bool Bool
-             | Character Char
-             | Float Double
-             deriving (Show, Eq)
+import Types
 
 symbol :: Parser Char
 symbol = oneOf "!#$%&|*+-/:<=>?@^_~"
