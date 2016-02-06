@@ -10,6 +10,7 @@ data LispVal = Atom String
              | Number Integer
              | String String
              | Bool Bool
+             | Character Char
              deriving (Show, Eq)
 
 symbol :: Parser Char
@@ -19,15 +20,15 @@ spaces :: Parser ()
 spaces = skipMany1 space
 
 parseExpr :: Parser LispVal
-parseExpr = parseAtom
+parseExpr = parseCharacter
+         <|> parseAtom
          <|> parseString
          <|> parseNumber
 
--- TODO: add other escape characters
 escapedCharacter :: Parser Char
-escapedCharacter = char '\\' >> (quote <|> newline)
-    where quote = char '"' >> return '"'
-          newline = char 'n' >> return '\n'
+escapedCharacter = char '\\' >> (choice escapeCharParsers)
+    where escapeChars = [('"', '"'), ('n', '\n'), ('r', '\r'), ('t', '\t'), ('\\', '\\')]
+          escapeCharParsers = map (\(c, ec) -> char c >> return ec) escapeChars
 
 parseString :: Parser LispVal
 parseString = do char '"'
@@ -44,6 +45,16 @@ parseAtom = do first <- letter <|> symbol
                          "#f" -> Bool False
                          _    -> Atom atom
 
+-- no semi-standard characters
+-- TODO check if symbols are complete for this purpose
+parseCharacter :: Parser LispVal
+parseCharacter = do string "#\\"
+                    c <- spaceLiteral <|> newlineLiteral <|> letter <|> digit <|> symbol <|> (return ' ')
+                    return $ Character c
+                    where spaceLiteral = try (string "space") >> return ' '
+                          newlineLiteral = try (string "newline") >> return '\n'
+
+-- TODO: add other number formats (#b, #o, #d, #x)
 parseNumber :: Parser LispVal
 parseNumber = many1 digit >>= return . Number . read
 
