@@ -28,19 +28,19 @@ parseExpr = parseCharacter
          <|> parseFloat
          <|> parseNumber
          <|> parseQuotation
-         <|> do char '('
-                x <- try parseList <|> parseDottedList
-                char ')'
-                return x
+         <|> parseList
+
 
 parseList :: Parser LispVal
-parseList = liftM List $ sepBy parseExpr spaces
+parseList = do char '('
+               head <- sepEndBy parseExpr spaces
+               tail <- parseDot
+               char ')'
+               return $ combinedList head tail
+               where combinedList head Nothing = List head
+                     combinedList head (Just tail) = DottedList head tail
+                     parseDot = option Nothing (char '.' >> spaces >> parseExpr >>= return . Just)
 
-parseDottedList :: Parser LispVal
-parseDottedList = do head <- endBy parseExpr spaces
-                     char '.' >> spaces
-                     tail <- parseExpr
-                     return $ DottedList head tail
 
 parseQuotation :: Parser LispVal
 parseQuotation = choice quoteParsers
