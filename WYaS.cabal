@@ -6,4 +6,4 @@ cabal-version:     >= 1.2
 executable WYaS
   main-is:         Main.hs
   hs-source-dirs:  src
-  build-depends:   base, parsec
+  build-depends:   base, parsec, mtl

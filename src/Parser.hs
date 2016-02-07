@@ -1,6 +1,7 @@
 module Parser where
 
 import Control.Monad
+import Control.Monad.Except
 import Numeric
 import Text.ParserCombinators.Parsec hiding (spaces)
 
@@ -81,7 +82,7 @@ parseFloat = do intPart <- many1 digit
                 return . Float . toFloat $ intPart ++ "." ++ fractionalPart
                 where toFloat = fst . head . readFloat
 
-readExpr :: String -> LispVal
+readExpr :: String -> ThrowsError LispVal
 readExpr input = case parse parseExpr "lisp" input of
-    Left err -> String $ "No match: " ++ show err
-    Right val -> val
+    Left err -> throwError $ Parser err
+    Right val -> return val
