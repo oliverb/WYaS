@@ -130,6 +130,7 @@ unpackEquals arg1 arg2 (AnyUnpacker unpacker) =
              `catchError` (const $ return False)
 
 equal :: [LispVal] -> ThrowsError LispVal
+equal [(List arg1), (List arg2)] = return $ Bool $ compareLists equal arg1 arg2
 equal [arg1, arg2] = do
       primitiveEquals <- liftM or $ mapM (unpackEquals arg1 arg2)
                          [AnyUnpacker unpackNum, AnyUnpacker unpackStr, AnyUnpacker unpackBool]
