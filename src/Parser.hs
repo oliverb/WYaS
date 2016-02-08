@@ -14,8 +14,8 @@ spaces :: Parser ()
 spaces = skipMany1 space
 
 parseExpr :: Parser LispVal
-parseExpr = parseCharacter
-         <|> parseAtom
+parseExpr = parseAtom
+         <|> parseCharacter
          <|> parseString
          <|> parseNumber
          <|> parseFloat
