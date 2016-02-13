@@ -38,7 +38,10 @@ interpretationTestData = [
     ("cond - else", "(cond (#f (muh 3)) ((equal? (+ 1 2) 4) #f) (else #t))", Right $ Bool True),
     ("cond - subexpr", "(cond (#f (muh 3)) ((equal? (+ 1 2) 3) #f) (else #t))", Right $ Bool False),
     ("case - second clause", "(case (+ 1 2) (#t 3) (3 'test))", Right $ Atom "test"),
-    ("case - else", "(case (equal? (+ 1 2) 3) (2 #t) (else #f))", Right $ Bool False)
+    ("case - else", "(case (equal? (+ 1 2) 3) (2 #t) (else #f))", Right $ Bool False),
+    ("bool? - plain bool", "(bool? #f)", Right $ Bool True),
+    ("bool? - plain non-bool", "(bool? 'true)", Right $ Bool False),
+    ("bool? - boolean expression", "(bool? (equal? (+ 2 3) 5))", Right $ Bool True)
     ]
 
 createInterpretationTest (desc, lisp, expectedValue) =

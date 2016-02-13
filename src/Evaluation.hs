@@ -65,8 +65,13 @@ primitives = [("+", numericBinop (+)),
               ("string>?", strBoolBinop (>)),
               ("string<=?", strBoolBinop (<=)),
               ("string>=?", strBoolBinop (>=)),
+              ("string?", multiArgPredicate isString),
+              ("make-string", makeString),
+              ("string-length", stringLength),
+              ("stringRef", stringRef),
               ("list?", multiArgPredicate isList),
               ("symbol?", multiArgPredicate isSymbol),
+              ("bool?", multiArgPredicate isBool),
               ("symbol->string", symbolToString),
               ("string->symbol", stringToSymbol),
               ("car", car),
@@ -75,6 +80,23 @@ primitives = [("+", numericBinop (+)),
               ("eqv?", eqv),
               ("eq?", eqv),
               ("equal?", equal)]
+              
+stringRef :: [LispVal] -> ThrowsError LispVal
+stringRef [String s, Number n] = return $ Character $ s !! (fromInteger n)
+stringRef args@[_, _] = throwError $ TypeMismatch "string and integer" $ List args
+stringRef badArgList = throwError $ NumArgs 2 badArgList
+              
+stringLength :: [LispVal] -> ThrowsError LispVal
+stringLength [String s] = return $ Number . toInteger $ length s
+stringLength [val] = throwError $ TypeMismatch "string" val
+stringLength badArgList = throwError $ NumArgs 1 badArgList
+              
+makeString :: [LispVal] -> ThrowsError LispVal
+makeString [Number n] = return $ String $ take (fromInteger n) $ repeat '#'
+makeString [Number n, Character c] = return $ String $ take (fromInteger n) $ repeat c
+makeString args@[_] = throwError $ TypeMismatch "integer" $ List args
+makeString args@[_, _] = throwError $ TypeMismatch "integer and char" $ List args
+makeString badArgList = throwError $ NumArgs 2 badArgList
 
 eqv :: [LispVal] -> ThrowsError LispVal
 eqv [(Bool arg1), (Bool arg2)]             = return $ Bool $ arg1 == arg2
@@ -124,6 +146,14 @@ stringToSymbol val@(_) = throwError $ NumArgs 1 val
 
 multiArgPredicate :: (LispVal -> Bool) -> [LispVal] -> ThrowsError LispVal
 multiArgPredicate p xs = return $ Bool $ all p xs
+
+isString :: LispVal -> Bool
+isString (String _) = True
+isString _ = False
+
+isBool :: LispVal -> Bool
+isBool (Bool _) = True
+isBool _ = False
 
 isList :: LispVal -> Bool
 isList (List _) = True
