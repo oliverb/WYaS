@@ -7,7 +7,7 @@ import qualified System.Exit as Exit
 
 import qualified EvaluationTests
 
-tests = TestList EvaluationTests.testList
+tests = TestList [EvaluationTests.testList]
 
 main :: IO ()
 main = do count <- runTestTT $ tests
