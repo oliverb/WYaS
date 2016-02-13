@@ -16,21 +16,22 @@ eval (List [Atom "if", pred, conseq, alt]) =
              Bool False -> eval alt
              Bool True  -> eval conseq
              otherwise  -> throwError $ TypeMismatch "Expected boolean in <if> predicate" result
-eval (List (Atom "cond":clauses)) = evaluateCondClauses clauses
+eval (List (Atom "cond":clauses)) = checkAndEvalClauses eval clauses
 eval (List (Atom func : args)) = mapM eval args >>= apply func
 eval badForm = throwError $ BadSpecialForm "Unrecognized special form" badForm
 
-evaluateCondClauses :: [LispVal] -> ThrowsError LispVal
-evaluateCondClauses [List (Atom "else":exprs)] =
+
+checkAndEvalClauses :: (LispVal -> ThrowsError LispVal) -> [LispVal] -> ThrowsError LispVal
+checkAndEvalClauses _ [List (Atom "else":exprs)] =
     case length exprs of
-        0 -> throwError $ BadSpecialForm "else in cond missing result expressions" (Atom "else")
-        otherwise -> evaluateCondClauses [List (Bool True:exprs)]
-evaluateCondClauses  ((List (pred:exprs)):otherClauses) =
-    do result <- eval pred
+        0 -> throwError $ BadSpecialForm "Expected expressions after else clause in cond/case construct" (Atom "else")
+        otherwise -> foldM (\_ expr -> eval expr) (Atom "else") exprs
+checkAndEvalClauses check ((List (cond:exprs)):otherClauses) =
+    do result <- check cond
        case result of
-          Bool True -> foldM (\_ expr -> eval expr) result exprs
-          Bool False -> evaluateCondClauses otherClauses
-          otherwise -> throwError $ TypeMismatch "Expected boolean in <cond> clause predicate" result
+            Bool True -> foldM (\_ expr -> eval expr) result exprs
+            Bool False -> checkAndEvalClauses check otherClauses
+            otherwise -> throwError $ TypeMismatch "Expected boolean when checking cond/case clause predicate" result
 
 
 apply :: String -> [LispVal] -> ThrowsError LispVal
