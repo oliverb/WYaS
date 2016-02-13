@@ -36,7 +36,9 @@ interpretationTestData = [
     ("if - non-boolean condition", "(if (+ 1 2) #t #f)", Left $ TypeMismatch "" (Bool True)),
     ("cond - second clause", "(cond (#f (muh 2)) (#t \"hi\"))", Right $ String "hi"),
     ("cond - else", "(cond (#f (muh 3)) ((equal? (+ 1 2) 4) #f) (else #t))", Right $ Bool True),
-    ("cond - subexpr", "(cond (#f (muh 3)) ((equal? (+ 1 2) 3) #f) (else #t))", Right $ Bool False)
+    ("cond - subexpr", "(cond (#f (muh 3)) ((equal? (+ 1 2) 3) #f) (else #t))", Right $ Bool False),
+    ("case - second clause", "(case (+ 1 2) (#t 3) (3 'test))", Right $ Atom "test"),
+    ("case - else", "(case (equal? (+ 1 2) 3) (2 #t) (else #f))", Right $ Bool False)
     ]
 
 createInterpretationTest (desc, lisp, expectedValue) =

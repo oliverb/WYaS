@@ -17,6 +17,11 @@ eval (List [Atom "if", pred, conseq, alt]) =
              Bool True  -> eval conseq
              otherwise  -> throwError $ TypeMismatch "Expected boolean in <if> predicate" result
 eval (List (Atom "cond":clauses)) = checkAndEvalClauses eval clauses
+eval (List (Atom "case":keyExpr:clauses)) = 
+    do key <- eval keyExpr
+       let predicate expr = do val <- eval expr
+                               return $ Bool $ val == key
+       checkAndEvalClauses predicate clauses
 eval (List (Atom func : args)) = mapM eval args >>= apply func
 eval badForm = throwError $ BadSpecialForm "Unrecognized special form" badForm
 
