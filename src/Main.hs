@@ -16,7 +16,7 @@ main = do args <- getArgs
                otherwise -> putStrLn "program takes only 0 or 1 argument"
 
 runRepl :: IO ()
-runRepl = until_ (=="quit") (readPrompt "wyas>>> ") evalAndPrint
+runRepl = until_ (=="quit") (readPrompt "lispll>>> ") evalAndPrint
 
 flushStr :: String -> IO ()
 flushStr str = putStr str >> hFlush stdout
