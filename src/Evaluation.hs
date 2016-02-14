@@ -12,39 +12,43 @@ module Evaluation (
 import Control.Monad.Except
 
 import Types
+import Environment
 
 -- | Evaluate a LispVal expression
-eval :: LispVal -> ThrowsError LispVal
-eval val@(String _) = return val
-eval val@(Number _) = return val
-eval val@(Bool _) = return val
-eval (List [Atom "quote", val]) = return val
-eval (List [Atom "if", pred, conseq, alt]) =
-     do result <- eval pred
+eval :: Env -> LispVal -> IOThrowsError LispVal
+eval env val@(String _) = return val
+eval env val@(Number _) = return val
+eval env val@(Bool _) = return val
+eval env (Atom id) = getVar env id
+eval env (List [Atom "quote", val]) = return val
+eval env (List [Atom "if", pred, conseq, alt]) =
+     do result <- eval env pred
         case result of
-             Bool False -> eval alt
-             Bool True  -> eval conseq
+             Bool False -> eval env alt
+             Bool True  -> eval env conseq
              otherwise  -> throwError $ TypeMismatch "Expected boolean in <if> predicate" result
-eval (List (Atom "cond":clauses)) = checkAndEvalClauses eval clauses
-eval (List (Atom "case":keyExpr:clauses)) = 
-    do key <- eval keyExpr
-       let predicate expr = do val <- eval expr
+eval env (List (Atom "cond":clauses)) = checkAndEvalClauses env (eval env) clauses
+eval env (List (Atom "case":keyExpr:clauses)) =
+    do key <- eval env keyExpr
+       let predicate expr = do val <- eval env expr
                                return $ Bool $ val == key
-       checkAndEvalClauses predicate clauses
-eval (List (Atom func : args)) = mapM eval args >>= apply func
-eval badForm = throwError $ BadSpecialForm "Unrecognized special form" badForm
+       checkAndEvalClauses env predicate clauses
+eval env (List [Atom "set!", Atom var, form]) = eval env form >>= setVar env var
+eval env (List [Atom "define", Atom var, form]) = eval env form >>= defineVar env var
+eval env (List (Atom func : args)) = mapM (eval env) args >>= liftThrows . apply func
+eval env badForm = throwError $ BadSpecialForm "Unrecognized special form" badForm
 
 
-checkAndEvalClauses :: (LispVal -> ThrowsError LispVal) -> [LispVal] -> ThrowsError LispVal
-checkAndEvalClauses _ [List (Atom "else":exprs)] =
+checkAndEvalClauses :: Env -> (LispVal -> IOThrowsError LispVal) -> [LispVal] -> IOThrowsError LispVal
+checkAndEvalClauses env _ [List (Atom "else":exprs)] =
     case length exprs of
         0 -> throwError $ BadSpecialForm "Expected expressions after else clause in cond/case construct" (Atom "else")
-        otherwise -> foldM (\_ expr -> eval expr) (Atom "else") exprs
-checkAndEvalClauses check ((List (cond:exprs)):otherClauses) =
+        otherwise -> foldM (\_ expr -> eval env expr) (Atom "else") exprs
+checkAndEvalClauses env check ((List (cond:exprs)):otherClauses) =
     do result <- check cond
        case result of
-            Bool True -> foldM (\_ expr -> eval expr) result exprs
-            Bool False -> checkAndEvalClauses check otherClauses
+            Bool True -> foldM (\_ expr -> eval env expr) result exprs
+            Bool False -> checkAndEvalClauses env check otherClauses
             otherwise -> throwError $ TypeMismatch "Expected boolean when checking cond/case clause predicate" result
 
 

@@ -1,18 +1,18 @@
 {- |
 Module      :  $Header$
-Description :  Exports data types for representation and evaluation of Lisp programs
+Description :  Exports data types for representation of Lisp expressions and error handling
 
-Exports data types for representation and evaluation of Lisp programs
+Exports data types for representation of Lisp expressions and error handling
 -}
 module Types (
     LispVal(..),
     LispError(..),
     ThrowsError,
     IOThrowsError,
-    Env,
-    nullEnv,
     trapError,
-    extractValue
+    extractValue,
+    liftThrows,
+    runIOThrows
 )where
 
 import Control.Monad.Except
@@ -20,7 +20,7 @@ import Data.IORef
 
 import Text.ParserCombinators.Parsec hiding (spaces)
 
--- TODO add vectors
+-- | Represents any lisp expressions including the parsed program before evluation
 data LispVal = Atom String
              | Number Integer
              | String String
@@ -34,6 +34,7 @@ data LispVal = Atom String
 instance Show LispVal where
     show = showVal
 
+-- | Definition of exceptions possibly arising during parsing or evaluation
 data LispError = NumArgs Integer [LispVal]
                | TypeMismatch String LispVal
                | Parser ParseError
@@ -49,16 +50,21 @@ instance Show LispError where
 --    noMsg = Default "An error has occured"
 --    strMsg = Default
 
-type Env = IORef [(String, IORef LispVal)]
-
+-- | Monad for failable computations possibly returning LispErrors
 type ThrowsError = Either LispError
 
+-- | Monad for failable IO actions possibly returning LispErrors
 type IOThrowsError = ExceptT LispError IO
 
--- Helper action to create an empty environment
-nullEnv :: IO Env
-nullEnv = newIORef []
+liftThrows :: ThrowsError a -> IOThrowsError a
+liftThrows (Left err) = throwError err
+liftThrows (Right val) = return val
 
+-- TODO think about this some more
+runIOThrows :: IOThrowsError String -> IO String
+runIOThrows action = runExceptT (trapError action) >>= return . extractValue
+
+trapError :: MonadError e m => Show e => m String -> m String
 trapError action = catchError action (return . show)
 
 extractValue :: ThrowsError a -> a
