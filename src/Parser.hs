@@ -1,4 +1,12 @@
-module Parser where
+{- |
+Module      :  $Header$
+Description :  Exposes parsing logic to convert Lisp expressions into a LispVal representation
+
+Exposes parsing logic to convert Lisp expressions into a LispVal representation
+-}
+module Parser (
+    readExpr
+) where
 
 import Control.Monad
 import Control.Monad.Except
@@ -6,6 +14,12 @@ import Numeric
 import Text.ParserCombinators.Parsec hiding (spaces)
 
 import Types
+
+-- | Parses a Lisp expression into its LispVal representation
+readExpr :: String -> ThrowsError LispVal
+readExpr input = case parse parseExpr "lisp" input of
+    Left err -> throwError $ Parser err
+    Right val -> return val
 
 symbol :: Parser Char
 symbol = oneOf "!#$%&|*+-/:<=>?@^_~"
@@ -81,8 +95,3 @@ parseFloat = do intPart <- many1 digit
                 fractionalPart <- many1 digit
                 return . Float . toFloat $ intPart ++ "." ++ fractionalPart
                 where toFloat = fst . head . readFloat
-
-readExpr :: String -> ThrowsError LispVal
-readExpr input = case parse parseExpr "lisp" input of
-    Left err -> throwError $ Parser err
-    Right val -> return val

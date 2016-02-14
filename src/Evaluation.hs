@@ -1,10 +1,19 @@
 {-# LANGUAGE ExistentialQuantification #-}
-module Evaluation where
+{- |
+Module      :  $Header$
+Description :  Exposes logic for interpretation of LispVal expressions
+
+Exposes logic for interpretation of LispVal expressions
+-}
+module Evaluation (
+    eval
+)where
 
 import Control.Monad.Except
 
 import Types
 
+-- | Evaluate a LispVal expression
 eval :: LispVal -> ThrowsError LispVal
 eval val@(String _) = return val
 eval val@(Number _) = return val

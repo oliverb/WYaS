@@ -1,6 +1,23 @@
-module Types where
+{- |
+Module      :  $Header$
+Description :  Exports data types for representation and evaluation of Lisp programs
+
+Exports data types for representation and evaluation of Lisp programs
+-}
+module Types (
+    LispVal(..),
+    LispError(..),
+    ThrowsError,
+    IOThrowsError,
+    Env,
+    nullEnv,
+    trapError,
+    extractValue
+)where
 
 import Control.Monad.Except
+import Data.IORef
+
 import Text.ParserCombinators.Parsec hiding (spaces)
 
 -- TODO add vectors
@@ -32,7 +49,15 @@ instance Show LispError where
 --    noMsg = Default "An error has occured"
 --    strMsg = Default
 
+type Env = IORef [(String, IORef LispVal)]
+
 type ThrowsError = Either LispError
+
+type IOThrowsError = ExceptT LispError IO
+
+-- Helper action to create an empty environment
+nullEnv :: IO Env
+nullEnv = newIORef []
 
 trapError action = catchError action (return . show)
 

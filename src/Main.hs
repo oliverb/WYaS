@@ -1,4 +1,12 @@
-module Main where
+{- |
+Module      :  $Header$
+Description :  Implements lispll REPL
+
+Implements lispll REPL
+-}
+module Main (
+    main
+)where
 
 import Control.Monad.Except
 import System.Environment
@@ -8,6 +16,11 @@ import Types
 import Evaluation
 import Parser
 
+-- | Program entry point.
+--
+-- The lispll executable can either be invoked without arguments, triggering the interactive REPL,
+-- or with a string containing a Lisp expression. In the latter case the program prints the result
+-- of evaluating that expression end exits.
 main :: IO ()
 main = do args <- getArgs
           case length args of
