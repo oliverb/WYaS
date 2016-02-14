@@ -20,6 +20,7 @@ import Data.IORef
 
 import Text.ParserCombinators.Parsec hiding (spaces)
 
+
 -- | Represents any lisp expressions including the parsed program before evluation
 data LispVal = Atom String
              | Number Integer
@@ -34,6 +35,7 @@ data LispVal = Atom String
 instance Show LispVal where
     show = showVal
 
+    
 -- | Definition of exceptions possibly arising during parsing or evaluation
 data LispError = NumArgs Integer [LispVal]
                | TypeMismatch String LispVal
@@ -46,29 +48,41 @@ data LispError = NumArgs Integer [LispVal]
 instance Show LispError where
     show = showError
 
+    
 --instance Error LispError where
 --    noMsg = Default "An error has occured"
 --    strMsg = Default
 
+
 -- | Monad for failable computations possibly returning LispErrors
 type ThrowsError = Either LispError
+
 
 -- | Monad for failable IO actions possibly returning LispErrors
 type IOThrowsError = ExceptT LispError IO
 
+
+-- | Lift a failable computation to one with side effects
 liftThrows :: ThrowsError a -> IOThrowsError a
 liftThrows (Left err) = throwError err
 liftThrows (Right val) = return val
 
+
 -- TODO think about this some more
+-- | Execute a failable action and return the computed String/error
 runIOThrows :: IOThrowsError String -> IO String
 runIOThrows action = runExceptT (trapError action) >>= return . extractValue
 
+
+-- | Execute an action returning a String while wrapping any occuring errors
 trapError :: MonadError e m => Show e => m String -> m String
 trapError action = catchError action (return . show)
 
+-- | Extract a value from a completed failable computation.
+-- Generates a runtime error when called on a failed computation!
 extractValue :: ThrowsError a -> a
 extractValue (Right val) = val
+
 
 unwordsAndShowList :: [LispVal] -> String
 unwordsAndShowList = unwords . map show
