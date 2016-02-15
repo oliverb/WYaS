@@ -20,11 +20,6 @@ import Control.Monad.Except
 import Types
 
 
--- | Represents the state of the lisp interpreter, which in essence is a map binding
--- names to Lisp expressions
-type Env = IORef [(String, IORef LispVal)]
-
-
 -- | Helper action to create an empty environment
 nullEnv :: IO Env
 nullEnv = newIORef []

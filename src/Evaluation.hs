@@ -6,7 +6,8 @@ Description :  Exposes logic for interpretation of LispVal expressions
 Exposes logic for interpretation of LispVal expressions
 -}
 module Evaluation (
-    eval
+    eval,
+    primitiveBindings
 )where
 
 import Control.Monad.Except
@@ -31,12 +32,29 @@ eval env (List (Atom "cond":clauses)) = checkAndEvalClauses env (eval env) claus
 eval env (List (Atom "case":keyExpr:clauses)) =
     do key <- eval env keyExpr
        let predicate expr = do val <- eval env expr
-                               return $ Bool $ val == key
+                               liftThrows $ eqv [val, key]
        checkAndEvalClauses env predicate clauses
 eval env (List [Atom "set!", Atom var, form]) = eval env form >>= setVar env var
+eval env (List (Atom "define" : List (Atom var : params) : body)) =
+     makeNormalFunc env params body >>= defineVar env var
+eval env (List (Atom "define" : DottedList (Atom var : params) varargs : body)) =
+     makeVarArgs varargs env params body >>= defineVar env var
 eval env (List [Atom "define", Atom var, form]) = eval env form >>= defineVar env var
-eval env (List (Atom func : args)) = mapM (eval env) args >>= liftThrows . apply func
+eval env (List (Atom "lambda" : List params : body)) =
+     makeNormalFunc env params body
+eval env (List (Atom "lambda" : DottedList params varargs : body)) =
+     makeVarArgs varargs env params body
+eval env (List (Atom "lambda" : varargs@(Atom _) : body)) =
+     makeVarArgs varargs env [] body
+eval env (List (function : args)) = do
+     func <- eval env function
+     argVals <- mapM (eval env) args
+     apply func argVals
 eval env badForm = throwError $ BadSpecialForm "Unrecognized special form" badForm
+
+makeFunc varargs env params body = return $ Func (map show params) varargs body env
+makeNormalFunc = makeFunc Nothing
+makeVarArgs = makeFunc . Just . show
 
 
 checkAndEvalClauses :: Env -> (LispVal -> IOThrowsError LispVal) -> [LispVal] -> IOThrowsError LispVal
@@ -52,10 +70,22 @@ checkAndEvalClauses env check ((List (cond:exprs)):otherClauses) =
             otherwise -> throwError $ TypeMismatch "Expected boolean when checking cond/case clause predicate" result
 
 
-apply :: String -> [LispVal] -> ThrowsError LispVal
-apply func args = maybe (throwError $ NotFunction "Unrecognized primitive function args" func)
-                        ($ args)
-                        (lookup func primitives)
+apply :: LispVal -> [LispVal] -> IOThrowsError LispVal
+apply (PrimitiveFunc func) args = liftThrows $ func args
+apply (Func params varargs body closure) args =
+      if num params /= num args && varargs == Nothing
+         then throwError $ NumArgs (num params) args
+         else (liftIO $ bindVars closure $ zip params args) >>= bindVarArgs varargs >>= evalBody
+      where remainingArgs = drop (length params) args
+            num = toInteger . length
+            evalBody env = liftM last $ mapM (eval env) body
+            bindVarArgs arg env = case arg of
+                Just argName -> liftIO $ bindVars env [(argName, List $ remainingArgs)]
+                Nothing -> return env
+
+primitiveBindings :: IO Env
+primitiveBindings = nullEnv >>= (flip bindVars $ map makePrimitiveFunc primitives)
+     where makePrimitiveFunc (var, func) = (var, PrimitiveFunc func)
 
 primitives :: [(String, [LispVal] -> ThrowsError LispVal)]
 primitives = [("+", numericBinop (+)),

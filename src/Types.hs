@@ -5,6 +5,7 @@ Description :  Exports data types for representation of Lisp expressions and err
 Exports data types for representation of Lisp expressions and error handling
 -}
 module Types (
+    Env,
     LispVal(..),
     LispError(..),
     ThrowsError,
@@ -17,8 +18,12 @@ module Types (
 
 import Control.Monad.Except
 import Data.IORef
-
 import Text.ParserCombinators.Parsec hiding (spaces)
+
+
+-- | Represents the state of the lisp interpreter, which in essence is a map binding
+-- names to Lisp expressions
+type Env = IORef [(String, IORef LispVal)]
 
 
 -- | Represents any lisp expressions including the parsed program before evluation
@@ -30,7 +35,10 @@ data LispVal = Atom String
              | Float Double
              | List [LispVal]
              | DottedList [LispVal] LispVal
-             deriving (Eq)
+             | PrimitiveFunc  ([LispVal] -> ThrowsError LispVal)
+             | Func { params :: [String], vararg :: (Maybe String),
+                      body :: [LispVal], closure :: Env }
+
 
 instance Show LispVal where
     show = showVal
@@ -44,6 +52,7 @@ data LispError = NumArgs Integer [LispVal]
                | NotFunction String String
                | UnboundVar String String
                | Default String
+               
 
 instance Show LispError where
     show = showError
@@ -97,6 +106,13 @@ showVal (Character c) = show c
 showVal (Float d) = show d
 showVal (List xs) = "(" ++ unwordsAndShowList xs ++ ")"
 showVal (DottedList xs x) = "(" ++ unwordsAndShowList xs ++ " . " ++ show x ++ ")"
+showVal (PrimitiveFunc _) = "<primitive>"
+showVal (Func {params = args, vararg = varargs, body = body, closure = env}) =
+   "(lambda (" ++ unwords (map show args) ++
+      (case varargs of
+         Nothing -> ""
+         Just arg -> " . " ++ arg) ++ ") ...)"
+
 
 showError :: LispError -> String
 showError (UnboundVar message varname)  = message ++ ": " ++ varname
