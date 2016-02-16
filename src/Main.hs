@@ -16,6 +16,7 @@ import Types
 import Evaluation
 import Parser
 import Environment
+import Primitives
 
 -- | Program entry point.
 --
