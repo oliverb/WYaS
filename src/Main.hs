@@ -23,11 +23,8 @@ import Utils
 -- | Program entry point.
 --
 -- The lispll executable can either be invoked without arguments, triggering the interactive REPL,
--- or with a string containing a Lisp expression. In the latter case the program prints the result
+-- or with a path to a Lisp source file. In the latter case the program prints the result
 -- of evaluating that expression end exits.
 main :: IO ()
 main = do args <- getArgs
-          case length args of
-               0 -> runRepl
-               1 -> runOne $ args !! 0
-               otherwise -> putStrLn "Program takes only 0 or 1 argument"
+          if null args then runRepl else runOne $ args

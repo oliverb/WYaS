@@ -18,7 +18,8 @@ module Types (
 
 import Control.Monad.Except
 import Data.IORef
-import Text.ParserCombinators.Parsec hiding (spaces)
+import System.IO (Handle)
+import Text.ParserCombinators.Parsec (ParseError)
 
 
 -- | Represents the state of the lisp interpreter, which in essence is a map binding
@@ -35,7 +36,9 @@ data LispVal = Atom String
              | Float Double
              | List [LispVal]
              | DottedList [LispVal] LispVal
+             | Port Handle
              | PrimitiveFunc  ([LispVal] -> ThrowsError LispVal)
+             | IOFunc ([LispVal] -> IOThrowsError LispVal)
              | Func { params :: [String], vararg :: (Maybe String),
                       body :: [LispVal], closure :: Env }
 
@@ -106,7 +109,9 @@ showVal (Character c) = show c
 showVal (Float d) = show d
 showVal (List xs) = "(" ++ unwordsAndShowList xs ++ ")"
 showVal (DottedList xs x) = "(" ++ unwordsAndShowList xs ++ " . " ++ show x ++ ")"
+showVal (Port _) = "<IO port>"
 showVal (PrimitiveFunc _) = "<primitive>"
+showVal (IOFunc _) = "<IO primitive>"
 showVal (Func {params = args, vararg = varargs, body = body, closure = env}) =
    "(lambda (" ++ unwords (map show args) ++
       (case varargs of

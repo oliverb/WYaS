@@ -46,6 +46,9 @@ eval env (List (Atom "lambda" : DottedList params varargs : body)) =
      makeVarArgs varargs env params body
 eval env (List (Atom "lambda" : varargs@(Atom _) : body)) =
      makeVarArgs varargs env [] body
+eval env (List [Atom "load", String filename]) =
+     load filename >>= liftM last . mapM (eval env)
+eval env (List (Atom "apply" : args)) = mapM (eval env) args >>= applyProc
 eval env (List (function : args)) = do
      func <- eval env function
      argVals <- mapM (eval env) args
@@ -69,9 +72,9 @@ checkAndEvalClauses env check ((List (cond:exprs)):otherClauses) =
             Bool False -> checkAndEvalClauses env check otherClauses
             otherwise -> throwError $ TypeMismatch "Expected boolean when checking cond/case clause predicate" result
 
-
 apply :: LispVal -> [LispVal] -> IOThrowsError LispVal
 apply (PrimitiveFunc func) args = liftThrows $ func args
+apply (IOFunc func) args = func args
 apply (Func params varargs body closure) args =
       if num params /= num args && varargs == Nothing
          then throwError $ NumArgs (num params) args
@@ -82,3 +85,7 @@ apply (Func params varargs body closure) args =
             bindVarArgs arg env = case arg of
                 Just argName -> liftIO $ bindVars env [(argName, List $ remainingArgs)]
                 Nothing -> return env
+
+applyProc :: [LispVal] -> IOThrowsError LispVal
+applyProc [func, List args] = apply func args
+applyProc (func : args)     = apply func args

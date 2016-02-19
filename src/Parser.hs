@@ -5,7 +5,8 @@ Description :  Exposes parsing logic to convert Lisp expressions into a LispVal 
 Exposes parsing logic to convert Lisp expressions into a LispVal representation
 -}
 module Parser (
-    readExpr
+    readExpr,
+    readExprList
 ) where
 
 import Control.Monad
@@ -15,11 +16,22 @@ import Text.ParserCombinators.Parsec hiding (spaces)
 
 import Types
 
+
 -- | Parses a Lisp expression into its LispVal representation
 readExpr :: String -> ThrowsError LispVal
-readExpr input = case parse parseExpr "lisp" input of
-    Left err -> throwError $ Parser err
+readExpr = readOrThrow parseExpr
+
+
+-- | Parses several Lisp expressions separated by whitespace
+readExprList :: String -> ThrowsError [LispVal]
+readExprList = readOrThrow (endBy parseExpr spaces)
+
+
+readOrThrow :: Parser a -> String -> ThrowsError a
+readOrThrow parser input = case parse parser "lisp" input of
+    Left err  -> throwError $ Parser err
     Right val -> return val
+
 
 symbol :: Parser Char
 symbol = oneOf "!#$%&|*+-/:<=>?@^_~"
