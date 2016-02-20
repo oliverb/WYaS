@@ -2,7 +2,8 @@
 Module      :  $Header$
 Description :  Exports data types for representation of Lisp expressions and error handling
 
-Exports data types for representation of Lisp expressions and error handling
+Exports data types for representation of Lisp expressions and error handling as well as
+some essential functions on those types used by most of the code base.
 -}
 module Types (
     Env,
@@ -21,11 +22,8 @@ import Data.IORef
 import System.IO (Handle)
 import Text.ParserCombinators.Parsec (ParseError)
 
-
--- | Represents the state of the lisp interpreter, which in essence is a map binding
--- names to Lisp expressions
+-- | Represents the state of the lisp interpreter
 type Env = IORef [(String, IORef LispVal)]
-
 
 -- | Represents any lisp expressions including the parsed program before evluation
 data LispVal = Atom String
@@ -42,11 +40,6 @@ data LispVal = Atom String
              | Func { params :: [String], vararg :: (Maybe String),
                       body :: [LispVal], closure :: Env }
 
-
-instance Show LispVal where
-    show = showVal
-
-    
 -- | Definition of exceptions possibly arising during parsing or evaluation
 data LispError = NumArgs Integer [LispVal]
                | TypeMismatch String LispVal
@@ -55,36 +48,24 @@ data LispError = NumArgs Integer [LispVal]
                | NotFunction String String
                | UnboundVar String String
                | Default String
-               
-
-instance Show LispError where
-    show = showError
-
-    
---instance Error LispError where
---    noMsg = Default "An error has occured"
---    strMsg = Default
-
 
 -- | Monad for failable computations possibly returning LispErrors
 type ThrowsError = Either LispError
 
-
 -- | Monad for failable IO actions possibly returning LispErrors
 type IOThrowsError = ExceptT LispError IO
 
+-- ---------------------------------------------------------------------
+-- Utility functions for error handling
 
 -- | Lift a failable computation to one with side effects
 liftThrows :: ThrowsError a -> IOThrowsError a
 liftThrows (Left err) = throwError err
 liftThrows (Right val) = return val
 
-
--- TODO think about this some more
 -- | Execute a failable action and return the computed String/error
 runIOThrows :: IOThrowsError String -> IO String
 runIOThrows action = runExceptT (trapError action) >>= return . extractValue
-
 
 -- | Execute an action returning a String while wrapping any occuring errors
 trapError :: MonadError e m => Show e => m String -> m String
@@ -95,9 +76,11 @@ trapError action = catchError action (return . show)
 extractValue :: ThrowsError a -> a
 extractValue (Right val) = val
 
+-- ---------------------------------------------------------------------
+-- Instance definitions
 
-unwordsAndShowList :: [LispVal] -> String
-unwordsAndShowList = unwords . map show
+instance Show LispVal where
+    show = showVal
 
 showVal :: LispVal -> String
 showVal (Atom name) = name
@@ -108,7 +91,10 @@ showVal (Bool False) = "#f"
 showVal (Character c) = show c
 showVal (Float d) = show d
 showVal (List xs) = "(" ++ unwordsAndShowList xs ++ ")"
-showVal (DottedList xs x) = "(" ++ unwordsAndShowList xs ++ " . " ++ show x ++ ")"
+showVal (DottedList xs x) = "(" ++ unwordsAndShowList xs
+                                ++ " . "
+                                ++ show x
+                                ++ ")"
 showVal (Port _) = "<IO port>"
 showVal (PrimitiveFunc _) = "<primitive>"
 showVal (IOFunc _) = "<IO primitive>"
@@ -118,14 +104,19 @@ showVal (Func {params = args, vararg = varargs, body = body, closure = env}) =
          Nothing -> ""
          Just arg -> " . " ++ arg) ++ ") ...)"
 
+instance Show LispError where
+    show = showError
 
 showError :: LispError -> String
 showError (UnboundVar message varname)  = message ++ ": " ++ varname
 showError (BadSpecialForm message form) = message ++ ": " ++ show form
 showError (NotFunction message func)    = message ++ ": " ++ show func
-showError (NumArgs expected found)      = "Expected " ++ show expected
-                                       ++ " args; found values " ++ unwordsAndShowList found
+showError (NumArgs expected found)
+    = "Expected " ++ show expected ++ " args;"
+   ++ " found values " ++ unwordsAndShowList found
 showError (TypeMismatch expected found) = "Invalid type: expected " ++ expected
                                        ++ ", found " ++ show found
 showError (Parser parseErr)             = "Parse error at " ++ show parseErr
 
+unwordsAndShowList :: [LispVal] -> String
+unwordsAndShowList = unwords . map show

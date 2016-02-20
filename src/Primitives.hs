@@ -1,9 +1,9 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {- |
 Module      :  $Header$
-Description :  Collection of built-in functions
+Description :  Implementation of Lisp built-in functions
 
-Collection of built-in functions
+Implementation of Lisp built-in functions
 -}
 module Primitives (
     primitiveBindings,
@@ -18,13 +18,13 @@ import Types
 import Environment
 import Parser
 
-
+-- | Sets up a Lisp Env which already includes binding for all the language primitives
 primitiveBindings :: IO Env
 primitiveBindings = nullEnv >>= (flip bindVars $ map (makeFunc IOFunc) ioPrimitives
                                                ++ map (makeFunc PrimitiveFunc) primitives)
      where makeFunc constructor (var, func) = (var, constructor func)
 
-
+-- | Collection of effect free primitives
 primitives :: [(String, [LispVal] -> ThrowsError LispVal)]
 primitives = [("+", numericBinop (+)),
               ("-", numericBinop (-)),
@@ -62,7 +62,7 @@ primitives = [("+", numericBinop (+)),
               ("eq?", eqv),
               ("equal?", equal)]
 
-
+-- | Collection of effectful primitives
 ioPrimitives :: [(String, [LispVal] -> IOThrowsError LispVal)]
 ioPrimitives = [("open-input-file", makePort ReadMode),
                 ("open-output-file", makePort WriteMode),
@@ -74,7 +74,8 @@ ioPrimitives = [("open-input-file", makePort ReadMode),
                 ("read-all", readAll)]
 
 
-
+-- ---------------------------------------------------------------------
+-- IO primitive definitions
 
 makePort :: IOMode -> [LispVal] -> IOThrowsError LispVal
 makePort mode [String filename] = liftM Port $ liftIO $ openFile filename mode
@@ -100,8 +101,20 @@ load filename = (liftIO $ readFile filename) >>= liftThrows . readExprList
 readAll :: [LispVal] -> IOThrowsError LispVal
 readAll [String filename] = liftM List $ load filename
 
+-- ---------------------------------------------------------------------
+-- Regular primitive definitions
 
-              
+-- | Implementation of the 'eqv' Lisp Primitive that is used in multiple places
+eqv :: [LispVal] -> ThrowsError LispVal
+eqv [(Bool arg1), (Bool arg2)]             = return $ Bool $ arg1 == arg2
+eqv [(Number arg1), (Number arg2)]         = return $ Bool $ arg1 == arg2
+eqv [(String arg1), (String arg2)]         = return $ Bool $ arg1 == arg2
+eqv [(Atom arg1), (Atom arg2)]             = return $ Bool $ arg1 == arg2
+eqv [(DottedList xs x), (DottedList ys y)] = eqv [List $ xs ++ [x], List $ ys ++ [y]]
+eqv [(List arg1), (List arg2)]             = return $ Bool $ compareLists eqv arg1 arg2
+eqv [_, _]                                 = return $ Bool False
+eqv badArgList                             = throwError $ NumArgs 2 badArgList
+
 stringRef :: [LispVal] -> ThrowsError LispVal
 stringRef [String s, Number n] = return $ Character $ s !! (fromInteger n)
 stringRef args@[_, _] = throwError $ TypeMismatch "string and integer" $ List args
@@ -118,16 +131,6 @@ makeString [Number n, Character c] = return $ String $ take (fromInteger n) $ re
 makeString args@[_] = throwError $ TypeMismatch "integer" $ List args
 makeString args@[_, _] = throwError $ TypeMismatch "integer and char" $ List args
 makeString badArgList = throwError $ NumArgs 2 badArgList
-
-eqv :: [LispVal] -> ThrowsError LispVal
-eqv [(Bool arg1), (Bool arg2)]             = return $ Bool $ arg1 == arg2
-eqv [(Number arg1), (Number arg2)]         = return $ Bool $ arg1 == arg2
-eqv [(String arg1), (String arg2)]         = return $ Bool $ arg1 == arg2
-eqv [(Atom arg1), (Atom arg2)]             = return $ Bool $ arg1 == arg2
-eqv [(DottedList xs x), (DottedList ys y)] = eqv [List $ xs ++ [x], List $ ys ++ [y]]
-eqv [(List arg1), (List arg2)]             = return $ Bool $ compareLists eqv arg1 arg2
-eqv [_, _]                                 = return $ Bool False
-eqv badArgList                             = throwError $ NumArgs 2 badArgList
 
 compareLists :: ([LispVal] -> ThrowsError LispVal) -> [LispVal] -> [LispVal] -> Bool
 compareLists cmp xs ys = (length xs == length ys) && (all cmpPair $ zip xs ys)
